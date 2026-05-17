@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inhouse Queue - League of Legends</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🏆 INHOUSE QUEUE</h1>
+            <p>Sistema de Partidas Customizadas - LoL</p>
+        </header>
+
+        <!-- Abas de Navegação -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="queue">📋 Fila de Espera</button>
+            <button class="tab-btn" data-tab="captains">👑 Sistema de Captains</button>
+            <button class="tab-btn" data-tab="stats">📊 Estatísticas</button>
+        </div>
+
+        <!-- ABA 1: FILA DE ESPERA -->
+        <div id="tab-queue" class="tab-content active">
+            <div class="add-player-area">
+                <input type="text" id="playerName" placeholder="Nome do Invocador" maxlength="20">
+                <select id="playerRank">
+                    <option value="IRON">Ferro 🥉</option>
+                    <option value="BRONZE">Bronze 🥉</option>
+                    <option value="SILVER">Prata ⚪</option>
+                    <option value="GOLD" selected>Ouro 🟡</option>
+                    <option value="PLATINUM">Platina 🔵</option>
+                    <option value="DIAMOND">Diamante 💎</option>
+                    <option value="MASTER">Mestre 🌟</option>
+                    <option value="GRANDMASTER">Grão-Mestre 👑</option>
+                    <option value="CHALLENGER">Desafiante 🏆</option>
+                </select>
+                <button id="addBtn">➕ Adicionar à Fila</button>
+                <button id="lcuImportBtn" class="lcu-import-btn">🎮 Importar do Cliente</button>
+            </div>
+
+            <div class="queue-section">
+                <h2>📢 Fila de Espera (<span id="queueCount">0</span>/10)</h2>
+                <div id="queueList" class="player-list">
+                    <div class="empty-message">Nenhum jogador na fila. Adicione acima!</div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="startMatchBtn" class="primary-btn" disabled>
+                    ⚔️ INICIAR PARTIDA (Mínimo 2 jogadores)
+                </button>
+                <button id="clearQueueBtn" class="danger-btn">🗑️ Limpar Fila</button>
+            </div>
+        </div>
+
+        <!-- ABA 2: SISTEMA DE CAPTAINS -->
+        <div id="tab-captains" class="tab-content">
+            <div class="captains-setup">
+                <h2>👑 Modo Captains</h2>
+                <p>Os dois melhores players (maior MMR/Rank) serão os capitães e escolherão os times!</p>
+                <button id="setupCaptainsBtn" class="primary-btn" disabled>🎯 Iniciar Modo Captains</button>
+
+                <div id="captainsArea" style="display:none; margin-top: 20px;">
+                    <div class="captains-info">
+                        <div class="captain blue-captain">
+                            <h3>🔵 Capitão do Time Azul</h3>
+                            <div id="blueCaptainPick"></div>
+                        </div>
+                        <div class="captain red-captain">
+                            <h3>🔴 Capitão do Time Vermelho</h3>
+                            <div id="redCaptainPick"></div>
+                        </div>
+                    </div>
+
+                    <div class="draft-area">
+                        <h3>📋 Jogadores Disponíveis para Escolha</h3>
+                        <div id="availablePlayers" class="player-list"></div>
+                    </div>
+
+                    <div class="teams-preview">
+                        <div class="team blue">
+                            <h4>🔵 Time Azul</h4>
+                            <div id="blueDraftTeam" class="player-list"></div>
+                        </div>
+                        <div class="team red">
+                            <h4>🔴 Time Vermelho</h4>
+                            <div id="redDraftTeam" class="player-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 3: ESTATÍSTICAS -->
+        <div id="tab-stats" class="tab-content">
+            <div class="stats-container">
+                <h2>📊 Estatísticas do Servidor</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total de Partidas</h3>
+                        <p id="totalMatches">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Jogadores Únicos</h3>
+                        <p id="uniquePlayers">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>MMR Médio</h3>
+                        <p id="averageRank">N/A</p>
+                    </div>
+                </div>
+                <button id="resetStatsBtn" class="danger-btn">🔄 Resetar Estatísticas</button>
+            </div>
+        </div>
+
+        <!-- SEÇÃO DOS TIMES -->
+        <div class="teams-section">
+            <div class="team blue">
+                <h2>🔵 TIME AZUL</h2>
+                <div id="blueTeamList" class="player-list">
+                    <div class="empty-message">Aguardando formação</div>
+                </div>
+            </div>
+            <div class="team red">
+                <h2>🔴 TIME VERMELHO</h2>
+                <div id="redTeamList" class="player-list">
+                    <div class="empty-message">Aguardando formação</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXPORTAÇÃO PARA DISCORD -->
+        <div class="export-section">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button id="sendToDiscordBtn" class="primary-btn" style="background: #5865f2; flex: 2;">
+                    💬 Enviar Partida ao Discord
+                </button>
+                <button id="configWebhookBtn" class="secondary-btn" style="background: #4a4a4a; flex: 1;">
+                    🔧 Configurar Webhook
+                </button>
+            </div>
+            <button id="exportDiscordBtn" class="secondary-btn" style="background: #2c6e2c;">
+                📋 Gerar Texto (Copiar Manual)
+            </button>
+
+            <div id="discordExport" class="discord-export" style="display:none; margin-top: 15px;">
+                <h3>📋 Copie o comando abaixo:</h3>
+                <pre id="discordCommand"></pre>
+                <button id="copyCommandBtn">📋 Copiar</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
