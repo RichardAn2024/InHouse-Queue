@@ -5,23 +5,51 @@ const API_URL = 'http://localhost:3000/api';
 const playerNameInput = document.getElementById('playerName');
 const playerRankSelect = document.getElementById('playerRank');
 const addBtn = document.getElementById('addBtn');
+const lcuImportBtn = document.getElementById('lcuImportBtn');
 const queueCountSpan = document.getElementById('queueCount');
 const queueListDiv = document.getElementById('queueList');
 const blueTeamListDiv = document.getElementById('blueTeamList');
 const redTeamListDiv = document.getElementById('redTeamList');
 const startMatchBtn = document.getElementById('startMatchBtn');
 const clearQueueBtn = document.getElementById('clearQueueBtn');
-const setupCaptainsBtn = document.getElementById('setupCaptainsBtn');
+const sendToDiscordBtn = document.getElementById('sendToDiscordBtn');
+const configWebhookBtn = document.getElementById('configWebhookBtn');
 const exportDiscordBtn = document.getElementById('exportDiscordBtn');
 const copyCommandBtn = document.getElementById('copyCommandBtn');
+const statsBtn = document.getElementById('statsBtn');
 const resetStatsBtn = document.getElementById('resetStatsBtn');
 
-// Variáveis para o sistema de Captains
+// Elementos do Modal
+const statsModal = document.getElementById('statsModal');
+const closeModalBtn = document.querySelector('.close-btn');
+
+// Variáveis
 let discordWebhookUrl = '';
+
+// ===== FUNÇÕES DE MODAL =====
+
+function openStatsModal() {
+    if (statsModal) {
+        statsModal.style.display = 'flex';
+        loadStats(); // Carregar estatísticas ao abrir
+    }
+}
+
+function closeStatsModal() {
+    if (statsModal) {
+        statsModal.style.display = 'none';
+    }
+}
+
+// Fechar modal ao clicar fora
+window.addEventListener('click', (e) => {
+    if (e.target === statsModal) {
+        closeStatsModal();
+    }
+});
 
 // ===== FUNÇÕES DE CONEXÃO =====
 
-// Verificar conexão com o backend
 async function checkConnection() {
     try {
         const response = await fetch('http://localhost:3000/api/health');
@@ -37,7 +65,6 @@ async function checkConnection() {
 
 // ===== FUNÇÕES DA FILA =====
 
-// Carregar fila do servidor
 async function loadQueue() {
     try {
         const response = await fetch(`${API_URL}/players/queue`);
@@ -52,7 +79,6 @@ async function loadQueue() {
     }
 }
 
-// Adicionar jogador (SEM NOTIFICAÇÃO)
 async function addToQueue() {
     const summonerName = playerNameInput.value.trim();
     const rank = playerRankSelect ? playerRankSelect.value : 'GOLD';
@@ -89,10 +115,8 @@ async function addToQueue() {
     }
 }
 
-// Função auxiliar para adicionar jogador manualmente
 async function addPlayerManually(name, rank, rankDivision, mmr) {
     try {
-        // Verificar se o jogador já está na fila
         const queueResponse = await fetch(`${API_URL}/players/queue`);
         const currentQueue = await queueResponse.json();
 
@@ -115,26 +139,22 @@ async function addPlayerManually(name, rank, rankDivision, mmr) {
         if (response.ok) {
             console.log(`✅ ${name} (${rank} ${rankDivision}) adicionado!`);
             return true;
-        } else {
-            console.warn(`❌ Falha ao adicionar ${name}`);
-            return false;
         }
+        return false;
     } catch (error) {
         console.error(`Erro ao adicionar ${name}:`, error);
         return false;
     }
 }
 
-// Função para importar jogadores do saguão do LoL
 async function importFromLobby() {
     console.log("🔄 Importando do saguão do LoL...");
 
-    const importBtn = document.getElementById('lcuImportBtn');
-    if (!importBtn) return;
+    if (!lcuImportBtn) return;
 
-    const originalText = importBtn.innerText;
-    importBtn.disabled = true;
-    importBtn.innerText = '⏳ Buscando jogadores...';
+    const originalText = lcuImportBtn.innerText;
+    lcuImportBtn.disabled = true;
+    lcuImportBtn.innerText = '⏳ Buscando jogadores...';
 
     try {
         const response = await fetch(`${API_URL}/lcu/lobby-members`, {
@@ -146,7 +166,7 @@ async function importFromLobby() {
 
         if (response.ok && data.success) {
             if (data.members && data.members.length > 0) {
-                importBtn.innerText = '⏳ Importando ranks...';
+                lcuImportBtn.innerText = '⏳ Importando ranks...';
 
                 let successCount = 0;
 
@@ -158,13 +178,11 @@ async function importFromLobby() {
                         member.mmr
                     );
                     if (added) successCount++;
-
-                    // Pequeno delay para não sobrecarregar
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
                 alert(`🎉 Importação concluída!\n\n${successCount} de ${data.members.length} jogadores adicionados à fila.`);
-                loadQueue(); // Recarregar a fila
+                loadQueue();
             } else {
                 alert("ℹ️ Nenhum jogador encontrado no saguão.");
             }
@@ -175,12 +193,11 @@ async function importFromLobby() {
         console.error('Erro ao importar do saguão:', error);
         alert('❌ Erro ao conectar com o servidor backend.');
     } finally {
-        importBtn.disabled = false;
-        importBtn.innerText = originalText;
+        lcuImportBtn.disabled = false;
+        lcuImportBtn.innerText = originalText;
     }
 }
 
-// Remover jogador
 async function removeFromQueue(playerId) {
     try {
         const response = await fetch(`${API_URL}/players/remove/${playerId}`, {
@@ -196,7 +213,6 @@ async function removeFromQueue(playerId) {
     }
 }
 
-// Limpar fila
 async function clearQueue() {
     if (confirm("Tem certeza? Isso removerá TODOS os jogadores da fila.")) {
         try {
@@ -217,7 +233,6 @@ async function clearQueue() {
 
 // ===== FUNÇÕES DE PARTIDA =====
 
-// Iniciar partida com balanceamento (qualquer número de jogadores)
 async function startMatch() {
     console.log('Iniciando partida...');
 
@@ -230,7 +245,6 @@ async function startMatch() {
             return;
         }
 
-        // Avisar se não for número par (vai ter times desbalanceados)
         if (queue.length % 2 !== 0) {
             const confirmar = confirm(`⚠️ Você tem ${queue.length} jogadores (número ímpar).\n\nOs times ficarão com números diferentes de jogadores.\n\nDeseja continuar mesmo assim?`);
             if (!confirmar) return;
@@ -250,10 +264,8 @@ async function startMatch() {
         console.log('Resposta do servidor:', data);
 
         if (response.ok) {
-            // Mostrar times na tela
             displayTeams(data.blue, data.red);
 
-            // Mostrar informações da partida
             const diff = Math.abs(data.blueTotalMMR - data.redTotalMMR);
             const blueSize = data.blue.length;
             const redSize = data.red.length;
@@ -263,7 +275,6 @@ async function startMatch() {
                 `🔴 Time Vermelho: ${redSize} jogadores (MMR: ${data.redTotalMMR})\n` +
                 `📊 Diferença de MMR: ${diff} pontos`);
 
-            // Recarregar estatísticas e fila
             loadStats();
             loadQueue();
         } else {
@@ -275,15 +286,8 @@ async function startMatch() {
     }
 }
 
-// Mostrar os times na tela
 function displayTeams(blueTeam, redTeam) {
-    console.log('Displaying teams - Blue:', blueTeam);
-    console.log('Displaying teams - Red:', redTeam);
-
-    if (!blueTeamListDiv || !redTeamListDiv) {
-        console.error('Elementos dos times não encontrados!');
-        return;
-    }
+    if (!blueTeamListDiv || !redTeamListDiv) return;
 
     blueTeamListDiv.innerHTML = '';
     redTeamListDiv.innerHTML = '';
@@ -332,7 +336,6 @@ function displayTeams(blueTeam, redTeam) {
         });
     }
 
-    // Calcular MMRs totais e tamanhos
     const blueTotalMMR = blueTeam ? blueTeam.reduce((sum, p) => sum + (p.mmr || 0), 0) : 0;
     const redTotalMMR = redTeam ? redTeam.reduce((sum, p) => sum + (p.mmr || 0), 0) : 0;
     const blueSize = blueTeam ? blueTeam.length : 0;
@@ -343,8 +346,6 @@ function displayTeams(blueTeam, redTeam) {
 
     if (blueTitle) blueTitle.innerHTML = `🔵 TIME AZUL (${blueSize} jog. | MMR: ${blueTotalMMR})`;
     if (redTitle) redTitle.innerHTML = `🔴 TIME VERMELHO (${redSize} jog. | MMR: ${redTotalMMR})`;
-
-    console.log('Times exibidos com sucesso!');
 }
 
 function clearTeamsDisplay() {
@@ -368,32 +369,50 @@ function renderQueue(queue) {
             queueListDiv.innerHTML = '<div class="empty-message">Nenhum jogador na fila. Adicione acima!</div>';
         }
         if (startMatchBtn) startMatchBtn.disabled = true;
-        if (setupCaptainsBtn) setupCaptainsBtn.disabled = true;
         return;
     }
 
-    // Mudança aqui: habilita com 2 ou mais jogadores (antes era 10)
     if (startMatchBtn) startMatchBtn.disabled = (queue.length < 2);
-    if (setupCaptainsBtn) setupCaptainsBtn.disabled = (queue.length < 4);
 
     if (!queueListDiv) return;
 
-    // ... resto da função permanece igual
+    queueListDiv.innerHTML = '';
+    queue.forEach(player => {
+        const playerCard = document.createElement('div');
+        playerCard.classList.add('player-card');
+
+        const rankIcon = getRankIcon(player.rank);
+        const rankName = formatRank(player.rank);
+
+        playerCard.innerHTML = `
+            <span>
+                ${rankIcon} ${player.name}
+                <small style="color: #888;">(MMR: ${player.mmr})</small>
+            </span>
+            <div>
+                <span class="rank-badge rank-${player.rank}">${rankName} ${player.rankDivision || ''}</span>
+                <button class="remove-player" data-id="${player.id}">❌ Remover</button>
+            </div>
+        `;
+
+        queueListDiv.appendChild(playerCard);
+    });
+
+    document.querySelectorAll('.remove-player').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const playerId = btn.getAttribute('data-id');
+            removeFromQueue(playerId);
+        });
+    });
 }
 
 // ===== FUNÇÕES AUXILIARES =====
 
 function getRankIcon(rank) {
     const icons = {
-        'IRON': '🥉',
-        'BRONZE': '🥉',
-        'SILVER': '⚪',
-        'GOLD': '🟡',
-        'PLATINUM': '🔵',
-        'DIAMOND': '💎',
-        'MASTER': '🌟',
-        'GRANDMASTER': '👑',
-        'CHALLENGER': '🏆',
+        'IRON': '🥉', 'BRONZE': '🥉', 'SILVER': '⚪',
+        'GOLD': '🟡', 'PLATINUM': '🔵', 'DIAMOND': '💎',
+        'MASTER': '🌟', 'GRANDMASTER': '👑', 'CHALLENGER': '🏆',
         'UNRANKED': '❓'
     };
     return icons[rank] || '⭐';
@@ -401,15 +420,9 @@ function getRankIcon(rank) {
 
 function formatRank(rank) {
     const rankNames = {
-        'IRON': 'Ferro',
-        'BRONZE': 'Bronze',
-        'SILVER': 'Prata',
-        'GOLD': 'Ouro',
-        'PLATINUM': 'Platina',
-        'DIAMOND': 'Diamante',
-        'MASTER': 'Mestre',
-        'GRANDMASTER': 'Grão-Mestre',
-        'CHALLENGER': 'Desafiante',
+        'IRON': 'Ferro', 'BRONZE': 'Bronze', 'SILVER': 'Prata',
+        'GOLD': 'Ouro', 'PLATINUM': 'Platina', 'DIAMOND': 'Diamante',
+        'MASTER': 'Mestre', 'GRANDMASTER': 'Grão-Mestre', 'CHALLENGER': 'Desafiante',
         'UNRANKED': 'Sem Rank'
     };
     return rankNames[rank] || rank;
@@ -534,11 +547,9 @@ async function sendToDiscord() {
     const totalMatches = parseInt(document.getElementById('totalMatches')?.innerText || '0');
     const matchNumber = totalMatches + 1;
 
-    const sendBtn = document.getElementById('sendToDiscordBtn');
-    const originalText = sendBtn?.innerText;
-    if (sendBtn) {
-        sendBtn.disabled = true;
-        sendBtn.innerText = '⏳ Enviando...';
+    if (sendToDiscordBtn) {
+        sendToDiscordBtn.disabled = true;
+        sendToDiscordBtn.innerText = '⏳ Enviando...';
     }
 
     try {
@@ -564,9 +575,9 @@ async function sendToDiscord() {
         console.error('Erro ao enviar:', error);
         alert('❌ Erro ao conectar com o servidor');
     } finally {
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.innerText = originalText;
+        if (sendToDiscordBtn) {
+            sendToDiscordBtn.disabled = false;
+            sendToDiscordBtn.innerText = '💬 Enviar Partida ao Discord';
         }
     }
 }
@@ -623,60 +634,26 @@ function copyToClipboard() {
     }
 }
 
-// ===== SISTEMA DE CAPTAINS =====
-
-async function setupCaptains() {
-    alert('🚧 Modo Captains em desenvolvimento!\n\nPor enquanto, use o modo normal de balanceamento automático.');
-}
-
-// ===== SISTEMA DE ABAS =====
-
-function initTabs() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.getAttribute('data-tab');
-
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-
-            btn.classList.add('active');
-            const tabContent = document.getElementById(`tab-${tabId}`);
-            if (tabContent) tabContent.classList.add('active');
-        });
-    });
-}
-
 // ===== EVENT LISTENERS =====
 
 if (addBtn) addBtn.addEventListener('click', addToQueue);
 if (clearQueueBtn) clearQueueBtn.addEventListener('click', clearQueue);
 if (startMatchBtn) startMatchBtn.addEventListener('click', startMatch);
-if (setupCaptainsBtn) setupCaptainsBtn.addEventListener('click', setupCaptains);
+if (lcuImportBtn) lcuImportBtn.addEventListener('click', importFromLobby);
 if (exportDiscordBtn) exportDiscordBtn.addEventListener('click', exportToDiscord);
 if (copyCommandBtn) copyCommandBtn.addEventListener('click', copyToClipboard);
 if (resetStatsBtn) resetStatsBtn.addEventListener('click', resetStats);
-
-// Botões do Discord
-const sendToDiscordBtn = document.getElementById('sendToDiscordBtn');
-const configWebhookBtn = document.getElementById('configWebhookBtn');
-
+if (statsBtn) statsBtn.addEventListener('click', openStatsModal);
+if (closeModalBtn) closeModalBtn.addEventListener('click', closeStatsModal);
 if (sendToDiscordBtn) sendToDiscordBtn.addEventListener('click', sendToDiscord);
 if (configWebhookBtn) configWebhookBtn.addEventListener('click', saveWebhookUrl);
 
-// 👇 BOTÃO PARA IMPORTAR DO LOBBY DO LEAGUE OF LEGENDS 👇
-const lcuImportBtn = document.getElementById('lcuImportBtn');
-if (lcuImportBtn) {
-    lcuImportBtn.addEventListener('click', importFromLobby);
-}
-
-// Enter key
 if (playerNameInput) {
     playerNameInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addToQueue();
     });
 }
 
-// Carregar URL do webhook salva
 const savedWebhookUrl = localStorage.getItem('discord_webhook_url');
 if (savedWebhookUrl) {
     discordWebhookUrl = savedWebhookUrl;
@@ -686,7 +663,6 @@ if (savedWebhookUrl) {
 // ===== INICIALIZAÇÃO =====
 
 async function init() {
-    initTabs();
     const connected = await checkConnection();
     if (connected) {
         loadQueue();
